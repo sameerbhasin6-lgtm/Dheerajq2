@@ -1,10 +1,13 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+# We import these globally, but we will also import the solver locally to fix your NameError
+import plotly.express as px
+import plotly.graph_objects as go
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="Pricing Strategy Optimization",
+    page_title="PriceAi | Analytics",
     page_icon="🔮",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -34,13 +37,13 @@ st.markdown("""
     .main-title { font-size: 2.5rem; font-weight: 700; color: #1e293b; margin: 0; letter-spacing: -1px; }
     .sub-title { font-size: 1.1rem; color: #64748b; margin-top: 0.5rem; font-weight: 300; }
 
-    /* KPI Box - Top Accent Style */
+    /* KPI Box */
     .kpi-box {
         background: white;
         padding: 1.5rem;
         border-radius: 12px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.02);
-        border-top: 4px solid #cbd5e1; /* Default Gray */
+        border-top: 4px solid #cbd5e1;
         text-align: left;
         transition: transform 0.2s;
     }
@@ -49,7 +52,7 @@ st.markdown("""
     .kpi-val { font-size: 2rem; font-weight: 700; color: #0f172a; margin: 0.5rem 0; }
     .kpi-sub { font-size: 0.9rem; font-weight: 500; }
     
-    /* Specific Colors for KPIs */
+    /* Specific Colors */
     .border-violet { border-top-color: #8b5cf6 !important; }
     .border-rose { border-top-color: #f43f5e !important; }
     .border-emerald { border-top-color: #10b981 !important; }
@@ -103,31 +106,13 @@ st.markdown("""
         border-radius: 20px; text-transform: uppercase;
         box-shadow: 0 4px 10px rgba(244, 63, 94, 0.3);
     }
-
-    /* Tabs Styling */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: white;
-        border-radius: 8px 8px 0 0;
-        gap: 1px;
-        padding-top: 10px;
-        padding-bottom: 10px;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: white;
-        color: #7c3aed;
-        border-bottom: 2px solid #7c3aed;
-    }
-
 </style>
 """, unsafe_allow_html=True)
 
 # --- 1. DATA LOADING ---
 @st.cache_data
 def load_data():
-    FILE_NAME = "Dheeraj.csv"
+    FILE_NAME = "Samsung_Sankalp.csv"
     try:
         df = pd.read_csv(FILE_NAME)
         return df
@@ -135,7 +120,8 @@ def load_data():
         st.error(f"🔴 System Error: Data file '{FILE_NAME}' not found.")
         st.stop()
         
-# --- 2. OPTIMIZATION ENGINE (UNCHANGED) ---
+# --- 2. OPTIMIZATION ENGINE ---
+
 def calculate_baseline(df, products):
     total_rev = 0
     for prod in products:
@@ -150,6 +136,9 @@ def calculate_baseline(df, products):
 
 @st.cache_data(show_spinner=False)
 def solve_pricing(df, products):
+    # FIX: Importing inside the function to prevent NameError in Streamlit Cloud
+    from scipy.optimize import differential_evolution
+    
     wtp_matrix = df[products].values
     bundle_sum_values = df[products].sum(axis=1).values
     n_prods = len(products)
@@ -172,6 +161,7 @@ def solve_pricing(df, products):
         bounds.append((0, max_w * 1.5)) 
     bounds.append((0, np.max(bundle_sum_values)))
 
+    # Running the solver with the local import
     res = differential_evolution(objective, bounds, strategy='best1bin', maxiter=50, popsize=15, tol=0.01, seed=42)
     return res.x, -res.fun
 
@@ -227,7 +217,7 @@ def generate_demand_curve(df, products, optimal_prices):
 # --- MAIN APP ---
 
 def main():
-    # Header V3
+    # Header
     st.markdown("""
     <div class="main-header">
         <h1 class="main-title">PriceAi Analytics</h1>
@@ -251,7 +241,7 @@ def main():
         discount = ((sum_indiv_opt - bundle_price) / sum_indiv_opt) * 100
         bundle_adoption = (len(customer_df[customer_df['Decision'] == 'Bundle']) / len(df)) * 100
         
-        # --- 1. KPI RIBBON (Violet/Rose Theme) ---
+        # --- 1. KPI RIBBON ---
         c1, c2, c3, c4 = st.columns(4)
         
         with c1:
@@ -266,22 +256,19 @@ def main():
         # --- 2. PRICING PODIUM ---
         st.markdown('<div class="price-grid">', unsafe_allow_html=True)
         
-        # HTML Generation (Concatenated to avoid indentation bugs)
         p_html = '<div class="price-grid">'
-        
-        # Individual Items (Left)
+        # Individual Items
         for i, prod in enumerate(products):
             p_opt = opt_prices[i]
             clean_name = prod.replace("Samsung_", "").replace("_", " ")
             p_html += f'<div class="p-card"><div class="p-name">{clean_name}</div><div class="p-cost">₹{p_opt:,.0f}</div></div>'
             
-        # Bundle (Hero Center/Right)
+        # Bundle (Hero)
         p_html += f'<div class="hero-bundle"><div class="hero-tag">Best Value</div><div class="p-name">All-In Bundle</div><div class="p-cost">₹{bundle_price:,.0f}</div></div>'
-        
         p_html += '</div>'
         st.markdown(p_html, unsafe_allow_html=True)
 
-        # --- 3. TABS (Clean Layout) ---
+        # --- 3. TABS ---
         tab1, tab2, tab3 = st.tabs(["📢 Strategic Insights", "👥 Customer Segments", "📈 Market Simulation"])
         
         # TAB 1: STRATEGY
@@ -302,7 +289,6 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with col_chart:
-                # Donut Chart - Violet Theme
                 rev_bundle = customer_df[customer_df['Decision'] == 'Bundle']['Revenue'].sum()
                 rev_indiv = customer_df[customer_df['Decision'] == 'Individual']['Revenue'].sum()
                 
@@ -310,7 +296,7 @@ def main():
                     names=['Bundle Rev', 'Individual Rev'],
                     values=[rev_bundle, rev_indiv],
                     hole=0.5,
-                    color_discrete_sequence=['#7c3aed', '#e2e8f0'] # Violet & Gray
+                    color_discrete_sequence=['#7c3aed', '#e2e8f0']
                 )
                 fig_pie.update_layout(height=280, margin=dict(t=20, b=20, l=20, r=20), showlegend=True)
                 st.plotly_chart(fig_pie, use_container_width=True)
