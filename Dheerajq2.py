@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 # We import these globally, but we will also import the solver locally to fix your NameError
-import plotly.express as px
-import plotly.graph_objects as go
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
