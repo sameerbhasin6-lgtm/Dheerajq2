@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="PriceAi | Strategic Pricing",
+    page_title="Strategic Pricing Optimisation",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
